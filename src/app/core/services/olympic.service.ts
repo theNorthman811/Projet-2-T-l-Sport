@@ -1,10 +1,9 @@
 // In olympic.service.ts
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { BehaviorSubject, Observable, throwError } from 'rxjs';
 import { catchError, map, tap } from 'rxjs/operators';
 import { olympic } from '../models/Olympic';
-
 
 @Injectable({
   providedIn: 'root',
@@ -15,10 +14,10 @@ export class OlympicService {
 
   constructor(private http: HttpClient) {}
 
-  loadInitialData() {
+  loadInitialData(): Observable<olympic[]> {
     return this.http.get<olympic[]>(this.olympicUrl).pipe(
       tap((value) => this.olympics$.next(value)),
-      catchError((error, caught) => {
+      catchError((error: HttpErrorResponse, caught: Observable<olympic[]>) => {
         console.error(error);
         this.olympics$.next(null);
         return caught;
@@ -32,12 +31,12 @@ export class OlympicService {
 
   getCountryDetails(countryId: number): Observable<olympic | undefined> {
     return this.olympics$.pipe(
-      map((data) => data?.find((country) => country.id === countryId)),
+      map((data: olympic[] | null) => data?.find((country) => country.id === countryId)),
       catchError(this.handleError)
     );
   }
 
-  private handleError(error: any): Observable<never> {
+  private handleError(error: HttpErrorResponse): Observable<never> {
     console.error('An error occurred:', error);
     return throwError('Something bad happened; please try again later.');
   }

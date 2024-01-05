@@ -2,11 +2,9 @@ import { Component, OnInit, OnDestroy } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import * as Highcharts from 'highcharts';
 import { OlympicService } from '../../core/services/olympic.service';
-import { Subject } from 'rxjs';
+import { Subject, Subscription } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
 import { Participation } from '../../core/models/Participation';
-
-
 
 interface MedalsByEditionEntry {
   year: number;
@@ -21,7 +19,8 @@ interface MedalsByEditionEntry {
 export class DetailComponent implements OnInit, OnDestroy {
   countryId: number | undefined;
   countryDetails: any;
-  private unsubscribe$: Subject<void> = new Subject<void>();
+  private destroyer$: Subject<void> = new Subject<void>();
+  private subscriptions: Subscription[] = [];
 
   constructor(
     private route: ActivatedRoute,
@@ -30,31 +29,29 @@ export class DetailComponent implements OnInit, OnDestroy {
   ) {}
 
   ngOnInit() {
-    this.route.params.pipe(takeUntil(this.unsubscribe$)).subscribe((params) => {
+    this.route.params.pipe(takeUntil(this.destroyer$)).subscribe((params) => {
       this.countryId = +params['id'];
       if (this.countryId) {
         this.loadCountryDetails();
       } else {
-        
         console.error('Country ID is undefined');
       }
     });
   }
 
   private loadCountryDetails() {
-    this.olympicService.getCountryDetails(this.countryId!)
-      .pipe(takeUntil(this.unsubscribe$))
-      .subscribe(
-        (countryDetails: any) => {
-          this.countryDetails = countryDetails;
-          
-          this.createLineChart();
-        },
-        (error) => {
-          
-          console.error('Failed to load country details:', error);
-        }
-      );
+    this.subscriptions.push(
+      this.olympicService.getCountryDetails(this.countryId!)
+        .subscribe(
+          (countryDetails: any) => {
+            this.countryDetails = countryDetails;
+            this.createLineChart();
+          },
+          (error) => {
+            console.error('Failed to load country details:', error);
+          }
+        )
+    );
   }
 
   private createLineChart() {
@@ -137,14 +134,13 @@ export class DetailComponent implements OnInit, OnDestroy {
     }
   }
 
-  
+
   getTotalMedals(): number {
     return this.countryDetails?.participations
       ? this.countryDetails.participations.reduce((total: number, participation: Participation) => total + participation.medalsCount, 0)
       : 0;
   }
 
-  
   getTotalAthletes(): number {
     return this.countryDetails?.participations
       ? this.countryDetails.participations.reduce((total: number, participation: Participation) => total + participation.athleteCount, 0)
@@ -152,8 +148,9 @@ export class DetailComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy() {
-    this.unsubscribe$.next();
-    this.unsubscribe$.complete();
+    this.destroyer$.next();
+    this.destroyer$.complete();
+    this.subscriptions.forEach(s => s.unsubscribe());
   }
 
   navigateToDashboard() {

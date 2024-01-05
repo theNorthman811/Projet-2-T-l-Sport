@@ -5,6 +5,7 @@ import { Router } from '@angular/router';
 import { olympic } from '../../core/models/Olympic';
 import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
+import { Participation } from '../../core/models/Participation';
 
 @Component({
   selector: 'app-dashboard',
@@ -13,13 +14,13 @@ import { takeUntil } from 'rxjs/operators';
 })
 export class DashboardComponent implements OnInit, OnDestroy {
   olympics: olympic[] | null = null;
-  private unsubscribe$: Subject<void> = new Subject<void>();
+  private destroyer$: Subject<void> = new Subject<void>();
 
   constructor(private olympicService: OlympicService, private router: Router) {}
 
   ngOnInit() {
     this.olympicService.getOlympics()
-      .pipe(takeUntil(this.unsubscribe$))
+      .pipe(takeUntil(this.destroyer$))
       .subscribe(
         (data: olympic[] | null) => {
           this.olympics = data;
@@ -78,12 +79,12 @@ export class DashboardComponent implements OnInit, OnDestroy {
     }
   }
 
-  private calculateTotalMedals(participations: any[]): number {
+  private calculateTotalMedals(participations: Participation[]): number {
     return participations.reduce((sum, participation) => sum + participation.medalsCount, 0);
   }
 
   ngOnDestroy() {
-    this.unsubscribe$.next();
-    this.unsubscribe$.complete();
+    this.destroyer$.next();
+    this.destroyer$.complete();
   }
 }
